@@ -66,8 +66,17 @@ const movies=[
 {title:"Shutter Island",year:2010,genres:["Mystery","Thriller","Drama"],keywords:["investigation","psychological","mystery","island"],overview:"A detective investigates a mysterious disappearance at a remote hospital."},
 {title:"Avengers: Endgame",year:2019,genres:["Action","Sci-Fi","Adventure"],keywords:["superheroes","time travel","marvel","sacrifice"],overview:"Superheroes unite to reverse a devastating event and save the universe."}
 ];
-
 function tokenize(movie){
+    return [
+        movie.title,
+        movie.genres.join(" "),
+        movie.keywords.join(" "),
+        movie.overview,
+        movie.actors?.join(" ") || "",
+        movie.industry || "",
+        movie.franchise || ""
+    ].join(" ").toLowerCase().match(/[a-z]+/g) || [];
+}
 return (movie.title+" "+movie.genres.join(" ")+" "+movie.keywords.join(" ")+" "+movie.overview)
 .toLowerCase().match(/[a-z]+/g)||[];
 }
