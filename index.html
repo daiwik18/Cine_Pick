@@ -1,1 +1,158 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CinePick | Discover Beyond the Screen</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#101010;color:#f5f0e8;font-family:Arial,sans-serif}
+header{padding:24px 7%;display:flex;justify-content:space-between;border-bottom:1px solid #333}
+.logo{color:#c5a45b;font-size:26px;font-weight:bold;letter-spacing:3px}
+nav a{color:#ddd;text-decoration:none;margin-left:20px}
+.hero{padding:85px 7%;background:linear-gradient(110deg,#151515,#302419)}
+.hero h1{font-size:48px;margin-bottom:15px}
+.hero span{color:#c5a45b}
+.hero p{color:#aaa;margin-bottom:25px}
+.search{display:flex;gap:10px;max-width:550px}
+input{flex:1;min-width:0;padding:14px;background:#222;color:white;border:1px solid #555;border-radius:5px}
+button{padding:13px 18px;background:#c5a45b;border:0;border-radius:5px;font-weight:bold;cursor:pointer}
+section{padding:45px 7%}
+h2{color:#c5a45b;margin-bottom:22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px}
+.card{background:#1e1e1e;border:1px solid #333;padding:22px;border-radius:9px}
+.card h3{margin-bottom:12px}
+.card p{color:#aaa;margin-bottom:10px;line-height:1.5}
+.card button{margin-top:10px}
+#status{color:#aaa;margin-bottom:20px}
+#recommendations{margin-top:35px}
+footer{text-align:center;padding:30px;color:#777;border-top:1px solid #333}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="logo">CINEPICK.</div>
+<nav><a href="#home">Home</a><a href="#movies">Explore</a></nav>
+</header>
+
+<div class="hero" id="home">
+<h1>Discover <span>Beyond</span><br>the Screen.</h1>
+<p>Your next favourite movie is waiting to be discovered.</p>
+<div class="search">
+<input id="query" placeholder="Search movies or genres...">
+<button onclick="searchMovies()">Search</button>
+</div>
+</div>
+
+<section id="movies">
+<h2>Explore Movies</h2>
+<p id="status">Loading collection...</p>
+<div class="grid" id="movieGrid"></div>
+<div id="recommendations"></div>
+</section>
+
+<footer>CINEPICK © 2026 | Discover Beyond the Screen.</footer>
+
+<script>
+const movies=[
+{title:"Inception",year:2010,genres:["Sci-Fi","Action","Thriller"],keywords:["dreams","mind","subconscious","heist"],overview:"A skilled thief enters dreams to steal secrets and manipulate the human mind."},
+{title:"Interstellar",year:2014,genres:["Sci-Fi","Drama","Adventure"],keywords:["space","time","black hole","survival"],overview:"Explorers travel through space searching for a future for humanity."},
+{title:"The Dark Knight",year:2008,genres:["Action","Crime","Drama"],keywords:["batman","joker","justice","crime"],overview:"A masked hero faces a criminal mastermind threatening Gotham City."},
+{title:"The Martian",year:2015,genres:["Sci-Fi","Adventure","Drama"],keywords:["mars","space","survival","astronaut"],overview:"An astronaut struggles to survive alone on Mars using science."},
+{title:"Shutter Island",year:2010,genres:["Mystery","Thriller","Drama"],keywords:["investigation","psychological","mystery","island"],overview:"A detective investigates a mysterious disappearance at a remote hospital."},
+{title:"Avengers: Endgame",year:2019,genres:["Action","Sci-Fi","Adventure"],keywords:["superheroes","time travel","marvel","sacrifice"],overview:"Superheroes unite to reverse a devastating event and save the universe."}
+];
+
+function tokenize(movie){
+return (movie.title+" "+movie.genres.join(" ")+" "+movie.keywords.join(" ")+" "+movie.overview)
+.toLowerCase().match(/[a-z]+/g)||[];
+}
+
+function tfidf(){
+const docs=movies.map(tokenize);
+const vocab=[...new Set(docs.flat())];
+const N=docs.length;
+
+return docs.map(doc=>{
+const vector={};
+vocab.forEach(word=>{
+const tf=doc.filter(w=>w===word).length/doc.length;
+const df=docs.filter(d=>d.includes(word)).length;
+const idf=Math.log((N+1)/(df+1))+1;
+vector[word]=tf*idf;
+});
+return vector;
+});
+}
+
+const vectors=tfidf();
+
+function cosine(a,b){
+let dot=0,na=0,nb=0;
+for(const word in a){
+dot+=a[word]*(b[word]||0);
+na+=a[word]**2;
+}
+for(const word in b)nb+=b[word]**2;
+return dot/(Math.sqrt(na)*Math.sqrt(nb)||1);
+}
+
+function display(list){
+document.getElementById("movieGrid").innerHTML=list.map(m=>`
+<div class="card">
+<h3>${m.title}</h3>
+<p>${m.year}</p>
+<p>${m.genres.join(" • ")}</p>
+<button onclick="recommend('${m.title}')">Find Similar</button>
+</div>`).join("");
+}
+
+function recommend(title){
+const index=movies.findIndex(m=>m.title===title);
+if(index<0)return;
+
+const results=movies.map((m,i)=>({
+movie:m,score:cosine(vectors[index],vectors[i])
+}))
+.filter(x=>x.movie.title!==title)
+.sort((a,b)=>b.score-a.score);
+
+document.getElementById("recommendations").innerHTML=`
+<h2>Recommended for ${title}</h2>
+<div class="grid">
+${results.map(x=>`
+<div class="card">
+<h3>${x.movie.title}</h3>
+<p>${x.movie.year}</p>
+<p>${x.movie.genres.join(" • ")}</p>
+<p>Similarity: ${(x.score*100).toFixed(1)}%</p>
+</div>`).join("")}
+</div>`;
+document.getElementById("recommendations").scrollIntoView({behavior:"smooth"});
+}
+
+function searchMovies(){
+const q=document.getElementById("query").value.toLowerCase().trim();
+const results=movies.filter(m=>
+m.title.toLowerCase().includes(q)||
+m.genres.join(" ").toLowerCase().includes(q)||
+m.overview.toLowerCase().includes(q)
+);
+display(results);
+document.getElementById("status").textContent=results.length+" movies found";
+}
+
+document.getElementById("query").addEventListener("keydown",e=>{
+if(e.key==="Enter")searchMovies();
+});
+
+display(movies);
+document.getElementById("status").textContent=movies.length+" movies available";
+</script>
+
+</body>
+</html>
